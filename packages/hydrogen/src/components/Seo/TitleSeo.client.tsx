@@ -1,17 +1,17 @@
 import React from 'react';
-import {Helmet} from '../../client';
+import {Head} from '../../foundation/Head/index.js';
+import type {Seo as SeoType} from '../../storefront-api-types.js';
+import type {PartialDeep} from 'type-fest';
 
-import type {Title} from './types';
-
-export function TitleSeo({title}: {title?: Title}) {
+export function TitleSeo({title}: PartialDeep<SeoType>) {
   if (!title) {
     return null;
   }
 
   return (
-    <Helmet>
+    <Head>
       <title>{title}</title>
       <meta property="og:title" content={title} />
-    </Helmet>
+    </Head>
   );
 }

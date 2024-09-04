@@ -1,54 +1,38 @@
-import {print} from 'graphql';
-import {LIB_VERSION} from '../version';
-import {ASTNode} from 'graphql';
+import {LIB_VERSION} from '../version.js';
 
-export function fetchBuilder<T>(request: Request) {
-  const defaultHeaders: Record<string, string> = {
-    'content-type': 'application/json',
-    'user-agent': `Hydrogen ${LIB_VERSION}`,
+const defaultHeaders = {
+  'content-type': 'application/json',
+  'user-agent': `Hydrogen ${LIB_VERSION}`,
+};
+
+type FetchInit = {
+  body?: string;
+  method?: string;
+  headers?: Record<string, string>;
+};
+
+export function fetchBuilder<T>(url: string, options: FetchInit = {}) {
+  const requestInit = {
+    ...options,
+    headers: {...defaultHeaders, ...options.headers},
   };
 
-  for (const [property, value] of Object.entries(defaultHeaders)) {
-    if (!request.headers.has(property)) {
-      request.headers.append(property, value);
-    }
-  }
-
-  let body: string;
-
   return async () => {
-    // Since a request's body can't be consumed more than once,
-    // and throws at the attempt afterwards,
-    // and this function can be cached and re-used, we cache
-    // the body in the outer scope.
-    if (!body) {
-      body = await request.text();
-    }
-
-    // Oxygen's fetch is a Go implementation which
-    // currently doesn't process some the call
-    // signatures well. Specifically, it can't
-    // consume request/response "body" property
-    // if it follows the standard and is a ReadableStream
-    // instance. It worked before because old Fetch API polyfills
-    // in Oxygen didn't follow the standard but soon they will,
-    // and we have to adjust the way we call fetch().
-
-    // Oxygen aims at being eventually compliant
-    // with the Fetch API, making these quirks redundant.
-
-    // Headers must be a plain object unless the whole second argument is instanceof Request
-    // @ts-ignore
-    const headers = Object.fromEntries(request.headers.entries());
-
-    const response = await fetch(request.url, {
-      body,
-      headers,
-      method: request.method,
-    });
+    const response = await fetch(url, requestInit);
 
     if (!response.ok) {
-      throw response;
+      if (response.status === 403 || response.status === 401) {
+        throw new Error(
+          `Request to the Storefront API failed! You may have a bad value in 'hydrogen.config.js'. Response status: ${
+            response.status
+          }, Request ID: ${response.headers.get('x-request-id')}`
+        );
+      }
+      throw new Error(
+        `Request to the Storefront API failed! Response status: ${
+          response.status
+        }, Request ID: ${response.headers.get('x-request-id')}`
+      );
     }
 
     const data = await response.json();
@@ -58,12 +42,11 @@ export function fetchBuilder<T>(request: Request) {
 }
 
 export function graphqlRequestBody(
-  query: ASTNode | string,
+  query: string,
   variables?: Record<string, any>
 ) {
-  const queryString = typeof query === 'string' ? query : print(query);
   return JSON.stringify({
-    query: queryString,
+    query,
     variables,
   });
 }

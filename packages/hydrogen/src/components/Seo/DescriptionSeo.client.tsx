@@ -1,17 +1,20 @@
 import React from 'react';
-import {Helmet} from '../../client';
+import {Head} from '../../foundation/Head/index.js';
+import type {Seo as SeoType} from '../../storefront-api-types.js';
 
-import type {Description} from './types';
-
-export function DescriptionSeo({description}: {description?: Description}) {
+export function DescriptionSeo({
+  description,
+}: {
+  description?: SeoType['description'];
+}) {
   if (!description) {
     return null;
   }
 
   return (
-    <Helmet>
+    <Head>
       <meta name="description" content={description} />
       <meta property="og:description" content={description} />
-    </Helmet>
+    </Head>
   );
 }

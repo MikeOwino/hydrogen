@@ -1,53 +1,43 @@
-import {ServerResponse} from 'http';
-import type {ServerComponentRequest} from './framework/Hydration/ServerComponentRequest.server';
-import type {Metafield, Image, MediaContentType} from './graphql/types/types';
-import {ApiRouteMatch} from './utilities/apiRoutes';
-import {Logger} from './utilities/log/log';
+export * from './shared-types.js';
+import {ShopifyConfig} from './shared-types.js';
 
-export type Renderer = (
-  url: URL,
-  options: {
-    request: ServerComponentRequest;
-    template: string;
-    nonce?: string;
-    dev?: boolean;
-  }
-) => Promise<Response>;
+import type {ServerResponse} from 'http';
+import type {Logger, LoggerConfig} from './utilities/log/index.js';
+import type {HydrogenRequest} from './foundation/HydrogenRequest/HydrogenRequest.server.js';
+import type {HydrogenResponse} from './foundation/HydrogenResponse/HydrogenResponse.server.js';
+import type {Metafield} from './storefront-api-types.js';
+import type {SessionStorageAdapter} from './foundation/session/session-types.js';
+import type {PartialDeep, JsonValue} from 'type-fest';
+import type {TemplateParts} from './utilities/template.js';
 
-export type Streamer = (
-  url: URL,
-  options: {
-    request: ServerComponentRequest;
-    response?: ServerResponse;
-    template: string;
-    nonce?: string;
-    dev?: boolean;
-  }
-) => void;
-
-export type Hydrator = (
-  url: URL,
-  options: {
-    request: ServerComponentRequest;
-    response?: ServerResponse;
-    isStreamable: boolean;
-    dev?: boolean;
-  }
-) => void;
-
-export type EntryServerHandler = {
-  render: Renderer;
-  stream: Streamer;
-  hydrate: Hydrator;
-  getApiRoute: (url: URL) => ApiRouteMatch | null;
-  log: Logger;
+export type AssembleHtmlParams = {
+  ssrHtml: string;
+  rscPayload?: string;
+  routes?: ImportGlobEagerOutput;
+  request: HydrogenRequest;
+  template: string;
 };
 
-export type ShopifyConfig = {
-  defaultLocale?: string;
-  storeDomain: string;
-  storefrontToken: string;
-  storefrontApiVersion: string;
+export type RunSsrParams = {
+  state: Record<string, any>;
+  rsc: {readable: ReadableStream; didError: () => Error | undefined};
+  routes?: ImportGlobEagerOutput;
+  request: HydrogenRequest;
+  response: HydrogenResponse;
+  log: Logger;
+  dev?: boolean;
+  template: TemplateParts;
+  nonce?: string;
+  nodeResponse?: ServerResponse;
+  revalidate?: Boolean;
+};
+
+export type RunRscParams = {
+  App: any;
+  state: Record<string, any>;
+  log: Logger;
+  request: HydrogenRequest;
+  response: HydrogenResponse;
 };
 
 export type Hook = (
@@ -59,61 +49,64 @@ export type ImportGlobEagerOutput = Record<
   Record<'default' | 'api', any>
 >;
 
-export type ServerHandlerConfig = {
-  pages?: ImportGlobEagerOutput;
-  shopifyConfig: ShopifyConfig;
+export type InlineHydrogenRoutes =
+  | string
+  | {
+      files: string;
+      basePath?: string;
+    };
+
+export type ResolvedHydrogenRoutes = {
+  files: ImportGlobEagerOutput;
+  dirPrefix: string;
+  basePath: string;
 };
 
-export type ClientHandlerConfig = {
-  shopifyConfig: ShopifyConfig;
+type ConfigFetcher<T> = (request: HydrogenRequest) => T | Promise<T>;
+
+export type ShopifyConfigFetcher = ConfigFetcher<ShopifyConfig>;
+
+export type ServerAnalyticsConnector = {
+  request: (
+    requestUrl: string,
+    requestHeader: Headers,
+    data?: any,
+    contentType?: 'json' | 'text'
+  ) => Promise<any>;
 };
 
-export type ServerHandler = (
-  App: any,
-  config: ServerHandlerConfig
-) => EntryServerHandler;
+export type InlineHydrogenConfig = ClientConfig & {
+  routes?: InlineHydrogenRoutes;
+  shopify?: ShopifyConfig | ShopifyConfigFetcher;
+  serverAnalyticsConnectors?: Array<ServerAnalyticsConnector>;
+  logger?: LoggerConfig;
+  session?: (log: Logger) => SessionStorageAdapter;
+  poweredByHeader?: boolean;
+  serverErrorPage?: string;
+  __EXPERIMENTAL__devTools?: boolean;
+};
+
+export type ResolvedHydrogenConfig = Omit<InlineHydrogenConfig, 'routes'> & {
+  routes: ResolvedHydrogenRoutes;
+};
+
+export type ClientConfig = {
+  /** React's StrictMode is on by default for your client side app; if you want to turn it off (not recommended), you can pass `false` */
+  strictMode?: boolean;
+};
 
 export type ClientHandler = (
-  App: any,
-  config: ClientHandlerConfig
+  App: React.ElementType,
+  config: ClientConfig
 ) => Promise<void>;
 
 export interface GraphQLConnection<T> {
   edges?: {node: T}[];
+  nodes?: T[];
 }
 
-export interface MediaImage {
-  __typename?: string;
-  id?: string;
-  mediaContentType?: MediaContentType;
-  image?: Pick<Image, 'altText' | 'url' | 'id' | 'width' | 'height'>;
-}
-
-interface ProductVariant {
-  __typename?: string;
-}
-
-interface Product {
-  __typename?: string;
-}
-
-export type RawMetafield = Omit<Partial<Metafield>, 'reference'> & {
-  reference?: MediaImage | ProductVariant | Product | null;
-};
-
-export type ParsedMetafield = Omit<
-  Partial<Metafield>,
-  'value' | 'reference'
-> & {
-  value?:
-    | string
-    | number
-    | boolean
-    | Record<any, string>
-    | Date
-    | Rating
-    | Measurement;
-  reference?: MediaImage | ProductVariant | Product | null;
+export type ParsedMetafield = Omit<PartialDeep<Metafield>, 'value'> & {
+  value?: string | number | boolean | JsonValue | Date | Rating | Measurement;
 };
 
 export interface Rating {
@@ -129,14 +122,28 @@ export interface Measurement {
 
 export type QueryKey = string | readonly unknown[];
 
-export interface CacheOptions {
-  private?: boolean;
+export type NoStoreStrategy = {
+  mode: string;
+};
+
+export interface AllCacheOptions {
+  mode?: string;
   maxAge?: number;
   staleWhileRevalidate?: number;
-  noStore?: boolean;
+  sMaxAge?: number;
+  staleIfError?: number;
 }
 
-export interface HydrogenVitePluginOptions {
-  devCache?: boolean;
-  purgeQueryCacheOnBuild?: boolean;
-}
+export type CachingStrategy = AllCacheOptions;
+
+export type PreloadOptions = boolean | string;
+
+export type HydrogenRouteProps = {
+  request: HydrogenRequest;
+  response: HydrogenResponse;
+  log: Logger;
+  params: Record<string, any>;
+  pathname: string;
+  search: string;
+  [key: string]: any;
+};

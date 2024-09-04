@@ -1,89 +1,136 @@
-import {ServerComponentRequest} from '../../framework/Hydration/ServerComponentRequest.server';
+import {HydrogenRequest} from '../../foundation/HydrogenRequest/HydrogenRequest.server.js';
 import {yellow, red, green, italic, lightBlue} from 'kolorist';
-import {getTime} from '../timing';
+import {getTime} from '../timing.js';
+import {parseUrl} from './utils.js';
 
-/** A utility for logging debugging, warning, and error information about the application.
- * Use by importing `log` `@shopify/hydrogen` or by using a `log` prop passed to each page
- * component. Using the latter is ideal, because it will ty your log to the current request in progress.
+/** The `log` utility is a function that's used for logging debugging, warning, and error information about the application.
+ * Use this utility by importing `log` from `@shopify/hydrogen`, or by using a `log` prop passed to each page
+ * component. We recommend using the `log` prop passed to each page because it will associated your log to the
+ * current request in progress.
  */
 
+type LoggerMethod = (...args: Array<any>) => void | Promise<any>;
 export interface Logger {
-  trace: (...args: Array<any>) => void;
-  debug: (...args: Array<any>) => void;
-  warn: (...args: Array<any>) => void;
-  error: (...args: Array<any>) => void;
-  fatal: (...args: Array<any>) => void;
+  trace: LoggerMethod;
+  debug: LoggerMethod;
+  warn: LoggerMethod;
+  error: LoggerMethod;
+  fatal: LoggerMethod;
+  options: () => LoggerOptions;
 }
 
-const defaultLogger = {
-  trace(context: {[key: string]: any}, ...args: Array<any>) {
+export type LoggerOptions = {
+  showCacheControlHeader?: boolean;
+  showCacheApiStatus?: boolean;
+  showQueryTiming?: boolean;
+  showUnusedQueryProperties?: boolean;
+};
+
+export type LoggerConfig = Partial<Exclude<Logger, 'options'>> & LoggerOptions;
+
+export type RenderType = 'str' | 'rsc' | 'ssr' | 'api';
+
+const defaultLogger: Logger = {
+  trace(context, ...args) {
     // Re-enable following line to show trace debugging information
     // console.log(context.id, ...args);
   },
-  debug(context: {[key: string]: any}, ...args: Array<any>) {
+  debug(context, ...args) {
     console.log(...args);
   },
-  warn(context: {[key: string]: any}, ...args: Array<any>) {
+  warn(context, ...args) {
     console.warn(yellow('WARN: '), ...args);
   },
-  error(context: {[key: string]: any}, ...args: Array<any>) {
-    console.error(red('ERROR: '), ...args);
+  error(context, error, ...extra) {
+    const url = context ? ` ${context.url}` : '';
+    const extraMessage = extra.length ? `\n${extra.join('\n')}` : '';
+
+    if (error instanceof Error) {
+      console.error(
+        red(`Error processing route:${url}\n${error.stack}${extraMessage}`)
+      );
+    } else {
+      console.error(red(`Error:${url} ${error}${extraMessage}`));
+    }
   },
-  fatal(context: {[key: string]: any}, ...args: Array<any>) {
+  fatal(context, ...args) {
     console.error(red('FATAL: '), ...args);
   },
+  options: () => ({} as LoggerOptions),
 };
 
-let logger = defaultLogger as Logger;
+let currentLogger = defaultLogger as Logger;
 
-export function getLoggerFromContext(context: any): Logger {
+function doLog(
+  method: keyof typeof defaultLogger,
+  request: Partial<HydrogenRequest>,
+  ...args: any[]
+) {
+  try {
+    const maybePromise = currentLogger[method](request, ...args);
+    if (maybePromise instanceof Promise) {
+      request?.ctx?.runtime?.waitUntil?.(
+        maybePromise.catch((e) => {
+          const message = e instanceof Error ? e.stack : e;
+          defaultLogger.error(
+            `Promise error from the custom logging implementation for logger.${method} failed:\n${message}`
+          );
+        })
+      );
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.stack : e;
+    defaultLogger.error(
+      `The custom logging implementation for logger.${method} failed:\n${message}`
+    );
+  }
+}
+
+export function getLoggerWithContext(
+  context: Partial<HydrogenRequest>
+): Logger {
   return {
-    trace: (...args) => logger.trace(context, ...args),
-    debug: (...args) => logger.debug(context, ...args),
-    warn: (...args) => logger.warn(context, ...args),
-    error: (...args) => logger.error(context, ...args),
-    fatal: (...args) => logger.fatal(context, ...args),
+    trace: (...args) => doLog('trace', context, ...args),
+    debug: (...args) => doLog('debug', context, ...args),
+    warn: (...args) => doLog('warn', context, ...args),
+    error: (...args) => doLog('error', context, ...args),
+    fatal: (...args) => doLog('fatal', context, ...args),
+    options: () => currentLogger.options(),
   };
 }
 
-export function setLogger(newLogger: Logger) {
-  logger = newLogger;
-}
+export const log: Logger = getLoggerWithContext({});
 
-export function resetLogger() {
-  logger = defaultLogger;
-}
+export function setLogger(config?: LoggerConfig) {
+  if (!config) {
+    currentLogger = defaultLogger;
+    return;
+  }
 
-export const log: Logger = {
-  trace(...args) {
-    return logger.trace({}, ...args);
-  },
-  debug(...args) {
-    return logger.debug({}, ...args);
-  },
-  warn(...args) {
-    return logger.warn({}, ...args);
-  },
-  error(...args) {
-    return logger.error({}, ...args);
-  },
-  fatal(...args) {
-    return logger.fatal({}, ...args);
-  },
-};
+  const options = {} as LoggerOptions;
+  currentLogger = {...defaultLogger, ...config, options: () => options};
+
+  for (const key of Object.keys(config) as (keyof LoggerOptions)[]) {
+    if (!(key in defaultLogger)) {
+      delete currentLogger[key as keyof Logger];
+      options[key] = config[key];
+    }
+  }
+}
 
 const SERVER_RESPONSE_MAP: Record<string, string> = {
   str: 'streaming SSR',
-  rsc: 'server Components',
+  rsc: 'Server Components',
   ssr: 'buffered SSR',
 };
 
 export function logServerResponse(
-  type: 'str' | 'rsc' | 'ssr' | 'api',
-  log: Logger,
-  request: ServerComponentRequest,
-  responseStatus: number
+  type: RenderType,
+  request: HydrogenRequest,
+  responseStatus: number,
+  didError: boolean
 ) {
+  const log = getLoggerWithContext(request);
   const coloredResponseStatus =
     responseStatus >= 500
       ? red(responseStatus)
@@ -95,21 +142,15 @@ export function logServerResponse(
 
   const fullType: string = SERVER_RESPONSE_MAP[type] || type;
 
-  const styledType = italic(pad(fullType, '                 '));
-  const paddedTiming = pad(
-    (getTime() - request.time).toFixed(2) + ' ms',
-    '          '
+  const styledType = italic(fullType.padEnd(17));
+  const paddedTiming = ((getTime() - request.time).toFixed(2) + ' ms').padEnd(
+    10
   );
-  const url =
-    type === 'rsc'
-      ? decodeURIComponent(request.url.substring(request.url.indexOf('=') + 1))
-      : request.url;
+  const url = parseUrl(type, request.url);
 
   log.debug(
-    `${request.method} ${styledType} ${coloredResponseStatus} ${paddedTiming} ${url}`
+    `${request.method} ${styledType} ${coloredResponseStatus} ${
+      didError || responseStatus >= 400 ? red('error') : green('ok   ')
+    } ${paddedTiming} ${url}`
   );
-}
-
-function pad(str: string, _pad: string) {
-  return (str + _pad).substring(0, _pad.length);
 }

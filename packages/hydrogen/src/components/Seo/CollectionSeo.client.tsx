@@ -1,15 +1,20 @@
 import React from 'react';
 
-import {TitleSeo} from './TitleSeo.client';
-import {DescriptionSeo} from './DescriptionSeo.client';
-import {TwitterSeo} from './TwitterSeo.client';
-import {ImageSeo} from './ImageSeo.client';
+import {TitleSeo} from './TitleSeo.client.js';
+import {DescriptionSeo} from './DescriptionSeo.client.js';
+import {TwitterSeo} from './TwitterSeo.client.js';
+import {ImageSeo} from './ImageSeo.client.js';
+import type {Collection as CollectionType} from '../../storefront-api-types.js';
+import type {PartialDeep} from 'type-fest';
 
-import {Collection} from './types';
-
-export function CollectionSeo({title, description, seo, image}: Collection) {
-  const seoTitle = (seo && seo.title) ?? title;
-  const seoDescription = (seo && seo.description) ?? description;
+export function CollectionSeo({
+  title,
+  description,
+  seo,
+  image,
+}: PartialDeep<CollectionType>) {
+  const seoTitle = seo?.title ?? title;
+  const seoDescription = seo?.description ?? description;
 
   return (
     <>

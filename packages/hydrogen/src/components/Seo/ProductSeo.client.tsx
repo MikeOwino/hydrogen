@@ -1,12 +1,15 @@
 import React from 'react';
-import {Helmet} from '../../client';
-
-import {TitleSeo} from './TitleSeo.client';
-import {DescriptionSeo} from './DescriptionSeo.client';
-import {TwitterSeo} from './TwitterSeo.client';
-import {ImageSeo} from './ImageSeo.client';
-
-import {Product} from './types';
+import {Head} from '../../foundation/Head/index.js';
+import {TitleSeo} from './TitleSeo.client.js';
+import {DescriptionSeo} from './DescriptionSeo.client.js';
+import {TwitterSeo} from './TwitterSeo.client.js';
+import {ImageSeo} from './ImageSeo.client.js';
+import type {
+  Scalars,
+  Product as ProductType,
+} from '../../storefront-api-types.js';
+import type {PartialDeep} from 'type-fest';
+import {flattenConnection} from '../../utilities/flattenConnection/index.js';
 
 export function ProductSeo({
   url,
@@ -14,14 +17,13 @@ export function ProductSeo({
   description,
   seo,
   vendor,
-  images,
+  featuredImage,
   variants,
-}: Product) {
+}: PartialDeep<ProductType> & {url: Scalars['URL']}) {
   const seoTitle = seo?.title ?? title;
   const seoDescription = seo?.description ?? description;
 
   let firstVariantPrice;
-  let firstImage;
 
   const productSchema = {
     '@context': 'http://schema.org/',
@@ -35,20 +37,26 @@ export function ProductSeo({
     url,
   } as any;
 
-  if (images.edges.length > 0) {
-    firstImage = images.edges[0]?.node;
-    productSchema.image = firstImage.url;
+  if (featuredImage) {
+    productSchema.image = featuredImage.url;
   }
 
-  if (variants.edges.length > 0) {
-    const firstVariant = variants.edges[0].node;
-    firstVariantPrice = firstVariant.priceV2;
+  const flattenedVariants = flattenConnection(variants ?? {});
+
+  if (flattenedVariants.length) {
+    const firstVariant = flattenedVariants[0];
+    firstVariantPrice = firstVariant?.priceV2;
 
     if (firstVariant && firstVariant.sku) {
       productSchema.sku = firstVariant.sku;
     }
 
-    productSchema.offers = variants.edges.map(({node}) => {
+    productSchema.offers = flattenedVariants.map((node) => {
+      if (!node || !node.priceV2?.amount || !node.priceV2.currencyCode) {
+        throw new Error(
+          `<ProductSeo/> requires variant.PriceV2 'amount' and 'currency`
+        );
+      }
       const offerSchema = {
         '@type': 'Offer',
         availability: `https://schema.org/${
@@ -72,7 +80,7 @@ export function ProductSeo({
 
   return (
     <>
-      <Helmet>
+      <Head>
         <meta property="og:type" content="og:product" />
         {firstVariantPrice && (
           <meta
@@ -90,11 +98,11 @@ export function ProductSeo({
         <script type="application/ld+json">
           {JSON.stringify(productSchema)}
         </script>
-      </Helmet>
+      </Head>
       <TitleSeo title={seoTitle} />
       <DescriptionSeo description={seoDescription} />
       <TwitterSeo title={seoTitle} description={seoDescription} />
-      {firstImage && <ImageSeo {...firstImage} />}
+      {featuredImage && <ImageSeo {...featuredImage} />}
     </>
   );
 }

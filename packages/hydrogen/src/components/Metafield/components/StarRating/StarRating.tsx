@@ -1,18 +1,17 @@
-import React, {useMemo, ElementType} from 'react';
-import {Props} from '../../../types';
-import {Rating} from '../../../../types';
+import React, {useMemo} from 'react';
+import {Rating} from '../../../../types.js';
 
 export const STAR_EMPTY = '☆';
 export const STAR_FILLED = '★';
 
-export interface StarRatingProps {
+export interface StarRatingProps<TTag> {
   rating: Rating;
   /** An HTML tag to be rendered as the base element wrapper. The default is `div`. */
-  as?: ElementType;
+  as?: TTag;
 }
 
-export function StarRating<TTag extends ElementType>(
-  props: Props<TTag> & StarRatingProps
+export function StarRating<TTag extends keyof JSX.IntrinsicElements = 'div'>(
+  props: JSX.IntrinsicElements[TTag] & StarRatingProps<TTag>
 ) {
   const {as, rating, ...passthroughProps} = props;
 

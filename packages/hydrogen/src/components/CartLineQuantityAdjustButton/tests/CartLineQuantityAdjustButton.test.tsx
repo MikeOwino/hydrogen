@@ -1,11 +1,12 @@
 import React from 'react';
-import {CartLineProvider} from '../../CartLineProvider';
-import {CartLineQuantity} from '../../CartLineQuantity';
-import {CartLineQuantityAdjustButton} from '../CartLineQuantityAdjustButton';
-import {CART_LINE} from '../../CartLineProvider/tests/fixtures';
-import {useCart} from '../../CartProvider';
-import {CART_WITH_LINES_FLATTENED} from '../../CartProvider/tests/fixtures';
-import {mountWithCartProvider} from '../../CartProvider/tests/utilities';
+import {CartLineProvider} from '../../CartLineProvider/index.js';
+import {CartLineQuantity} from '../../index.js';
+import {CartLineQuantityAdjustButton} from '../CartLineQuantityAdjustButton.js';
+import {CART_LINE} from '../../CartLineProvider/tests/fixtures.js';
+import {useCart} from '../../CartProvider/index.js';
+import {CART_WITH_LINES_FLATTENED} from '../../CartProvider/tests/fixtures.js';
+import {mountWithCartProvider} from '../../CartProvider/tests/utilities.js';
+import {BaseButton} from '../../BaseButton/index.js';
 
 describe('CartLineQuantityAdjustButton', () => {
   it('increases quantity', () => {
@@ -18,6 +19,7 @@ describe('CartLineQuantityAdjustButton', () => {
       </Cart>,
       {
         linesUpdate: linesUpdateMock,
+        cart: {lines: [CART_LINE]},
       }
     );
 
@@ -31,6 +33,12 @@ describe('CartLineQuantityAdjustButton', () => {
       {
         id: CART_LINE.id,
         quantity: 2,
+        attributes: [
+          {
+            key: 'color',
+            value: 'red',
+          },
+        ],
       },
     ]);
   });
@@ -49,6 +57,7 @@ describe('CartLineQuantityAdjustButton', () => {
       </Cart>,
       {
         linesUpdate: linesUpdateMock,
+        // @ts-ignore
         lines: [customLine],
       }
     );
@@ -63,6 +72,12 @@ describe('CartLineQuantityAdjustButton', () => {
       {
         id: CART_LINE.id,
         quantity: 1,
+        attributes: [
+          {
+            key: 'color',
+            value: 'red',
+          },
+        ],
       },
     ]);
   });
@@ -77,6 +92,9 @@ describe('CartLineQuantityAdjustButton', () => {
       </Cart>,
       {
         linesRemove: linesRemoveMock,
+        cart: {
+          lines: [CART_LINE],
+        },
       }
     );
 
@@ -99,6 +117,7 @@ describe('CartLineQuantityAdjustButton', () => {
       </Cart>,
       {
         linesRemove: linesRemoveMock,
+        lines: [CART_LINE],
       }
     );
 
@@ -109,6 +128,45 @@ describe('CartLineQuantityAdjustButton', () => {
     wrapper.find('button')!.trigger('onClick');
 
     expect(linesRemoveMock).toHaveBeenCalledWith([CART_LINE.id]);
+  });
+
+  describe('BaseButton', () => {
+    it('passes the onClick handler', () => {
+      const mockOnClick = jest.fn();
+      const wrapper = mountWithCartProvider(
+        <Cart>
+          <CartLineQuantityAdjustButton onClick={mockOnClick} adjust="increase">
+            Increase
+          </CartLineQuantityAdjustButton>
+        </Cart>,
+        {
+          cart: {lines: [CART_LINE]},
+        }
+      );
+
+      expect(wrapper).toContainReactComponent(BaseButton, {
+        onClick: mockOnClick,
+      });
+    });
+
+    it('passes the buttonRef', () => {
+      const mockRef = React.createRef<HTMLButtonElement>();
+
+      const wrapper = mountWithCartProvider(
+        <Cart>
+          <CartLineQuantityAdjustButton buttonRef={mockRef} adjust="increase">
+            Increase
+          </CartLineQuantityAdjustButton>
+        </Cart>,
+        {
+          cart: {lines: [CART_LINE]},
+        }
+      );
+
+      expect(wrapper).toContainReactComponent(BaseButton, {
+        buttonRef: mockRef,
+      });
+    });
   });
 });
 

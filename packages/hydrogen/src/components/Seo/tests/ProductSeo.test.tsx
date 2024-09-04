@@ -2,14 +2,15 @@ import React from 'react';
 
 import {mount} from '@shopify/react-testing';
 
-import {ProductSeo} from '../ProductSeo.client';
-import {TitleSeo} from '../TitleSeo.client';
-import {DescriptionSeo} from '../DescriptionSeo.client';
-import {TwitterSeo} from '../TwitterSeo.client';
-import {ImageSeo} from '../ImageSeo.client';
+import {ProductSeo} from '../ProductSeo.client.js';
+import {TitleSeo} from '../TitleSeo.client.js';
+import {DescriptionSeo} from '../DescriptionSeo.client.js';
+import {TwitterSeo} from '../TwitterSeo.client.js';
+import {ImageSeo} from '../ImageSeo.client.js';
+import {CurrencyCode} from '../../../storefront-api-types.js';
 
-jest.mock('../../../client', () => ({
-  Helmet({children}) {
+jest.mock('../../../foundation/Head/Head.client', () => ({
+  Head({children}: {children: React.ReactNode}) {
     return children;
   },
 }));
@@ -45,7 +46,7 @@ const defaultProps = {
   seo: {},
   handle: 'default handle',
   vendor: 'default vendor',
-  images: {edges: []},
+  featuredImage: {url: 'https://test-123/image.png', width: 1200, height: 600},
   variants: {
     edges: [],
   },
@@ -71,7 +72,10 @@ describe('<ProductSeo />', () => {
               url: 'https://test-123/image.png',
             },
             availableForSale: false,
-            priceV2: {amount, currencyCode: 'CAD'},
+            priceV2: {
+              amount: amount.toString(),
+              currencyCode: 'CAD' as CurrencyCode,
+            },
           },
         },
       ],
@@ -85,7 +89,7 @@ describe('<ProductSeo />', () => {
   });
 
   it('renders <meta /> with property="og:price:currency" with the first variant price', () => {
-    const currencyCode = 'CAD';
+    const currencyCode = 'CAD' as CurrencyCode;
     const variants = {
       edges: [
         {
@@ -94,7 +98,7 @@ describe('<ProductSeo />', () => {
               url: 'https://test-123/image.png',
             },
             availableForSale: false,
-            priceV2: {amount: 123.45, currencyCode},
+            priceV2: {amount: (123.45).toString(), currencyCode},
           },
         },
       ],
@@ -107,7 +111,7 @@ describe('<ProductSeo />', () => {
     });
   });
 
-  it('renders <ImageSeo /> with the first node of images prop', () => {
+  it('renders <ImageSeo /> with the first node of featuredImage prop', () => {
     const image = {
       url: 'url-123',
       width: 1200,
@@ -115,7 +119,7 @@ describe('<ProductSeo />', () => {
       altText: 'alt text',
     };
     const wrapper = mount(
-      <ProductSeo {...defaultProps} images={{edges: [{node: image}]}} />
+      <ProductSeo {...defaultProps} featuredImage={image} />
     );
 
     expect(wrapper).toContainReactComponent(ImageSeo, image);
@@ -137,6 +141,7 @@ describe('<ProductSeo />', () => {
             name: defaultProps.vendor,
           },
           url: 'https://test.com/product/123',
+          image: 'https://test-123/image.png',
         }),
       });
     });
@@ -149,7 +154,7 @@ describe('<ProductSeo />', () => {
       };
 
       const wrapper = mount(
-        <ProductSeo {...defaultProps} images={{edges: [{node: image}]}} />
+        <ProductSeo {...defaultProps} featuredImage={image} />
       );
 
       expect(wrapper).toContainReactComponent('script', {
@@ -175,7 +180,10 @@ describe('<ProductSeo />', () => {
           url: 'https://test-123/image.png',
         },
         availableForSale: false,
-        priceV2: {amount: 123.45, currencyCode: 'CAD'},
+        priceV2: {
+          amount: (123.45).toString(),
+          currencyCode: 'CAD' as CurrencyCode,
+        },
         sku: 'CK02112101',
       };
 
@@ -204,6 +212,7 @@ describe('<ProductSeo />', () => {
             name: defaultProps.vendor,
           },
           url: 'https://test.com/product/123',
+          image: 'https://test-123/image.png',
           sku: variant.sku,
           offers: [
             {

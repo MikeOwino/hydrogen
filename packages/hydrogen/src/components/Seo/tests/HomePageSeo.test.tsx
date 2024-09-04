@@ -2,12 +2,12 @@ import React from 'react';
 
 import {mount} from '@shopify/react-testing';
 
-import {HomePageSeo} from '../HomePageSeo.client';
-import {TitleSeo} from '../TitleSeo.client';
-import {DescriptionSeo} from '../DescriptionSeo.client';
+import {HomePageSeo} from '../HomePageSeo.client.js';
+import {TitleSeo} from '../TitleSeo.client.js';
+import {DescriptionSeo} from '../DescriptionSeo.client.js';
 
-jest.mock('../../../client', () => ({
-  Helmet({children}) {
+jest.mock('../../../foundation/Head/Head.client', () => ({
+  Head({children}: {children: React.ReactNode}) {
     return children;
   },
 }));
@@ -24,7 +24,11 @@ jest.mock('../DescriptionSeo.client', () => ({
   },
 }));
 
-const defaultProps = {title: 'default title', url: 'https://test.com'};
+const defaultProps = {
+  title: 'default title',
+  url: 'https://test.com',
+  description: 'cool product',
+};
 
 describe('<HomePageSeo />', () => {
   it("renders <meta/> with property='og:url' and url prop", () => {
@@ -75,7 +79,7 @@ describe('<HomePageSeo />', () => {
   });
 
   it('does not render <DescriptionSeo /> by default', () => {
-    const wrapper = mount(<HomePageSeo {...defaultProps} />);
+    const wrapper = mount(<HomePageSeo {...defaultProps} description={null} />);
 
     expect(wrapper).not.toContainReactComponent(DescriptionSeo);
   });

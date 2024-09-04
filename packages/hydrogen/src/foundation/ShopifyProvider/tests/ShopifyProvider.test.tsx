@@ -1,8 +1,9 @@
 import React from 'react';
 import {mount} from '@shopify/react-testing';
-import {ShopifyProvider, ShopifyContext} from '..';
-import {DEFAULT_LOCALE} from '../../constants';
-import {SHOPIFY_CONFIG} from './fixtures';
+import {ShopifyContext} from '../ShopifyProvider.client.js';
+import {ShopifyProvider} from '../ShopifyProvider.server.js';
+import {SHOPIFY_CONFIG} from './fixtures.js';
+import {DEFAULT_COUNTRY, DEFAULT_LANGUAGE} from '../../constants.js';
 
 describe('<ShopifyProvider />', () => {
   it('renders its children', () => {
@@ -20,7 +21,8 @@ describe('<ShopifyProvider />', () => {
       const provider = mount(
         <ShopifyProvider
           shopifyConfig={{
-            defaultLocale: 'zh-TW',
+            defaultLanguageCode: 'zh',
+            defaultCountryCode: 'tw',
             storeDomain: 'hydrogen-preview.myshopify.com',
             storefrontToken: '1234',
             storefrontApiVersion: 'unstable',
@@ -31,7 +33,10 @@ describe('<ShopifyProvider />', () => {
       );
 
       expect(provider).toContainReactComponent(ShopifyContext.Provider, {
-        value: expect.objectContaining({locale: 'zh-TW'}),
+        value: expect.objectContaining({
+          defaultCountryCode: 'TW',
+          defaultLanguageCode: 'ZH',
+        }),
       });
     });
 
@@ -49,7 +54,10 @@ describe('<ShopifyProvider />', () => {
       );
 
       expect(provider).toContainReactComponent(ShopifyContext.Provider, {
-        value: expect.objectContaining({locale: DEFAULT_LOCALE}),
+        value: expect.objectContaining({
+          defaultLanguageCode: DEFAULT_LANGUAGE.toUpperCase(),
+          defaultCountryCode: DEFAULT_COUNTRY.toUpperCase(),
+        }),
       });
     });
 
@@ -79,7 +87,7 @@ describe('<ShopifyProvider />', () => {
           shopifyConfig={{
             storeDomain: 'hydrogen-preview.myshopify.com',
             storefrontToken: '1234',
-            storefrontApiVersion: '2022-04',
+            storefrontApiVersion: '2022-07',
           }}
         >
           <Children />
@@ -88,7 +96,7 @@ describe('<ShopifyProvider />', () => {
 
       expect(provider).toContainReactComponent(ShopifyContext.Provider, {
         value: expect.objectContaining({
-          storefrontApiVersion: '2022-04',
+          storefrontApiVersion: '2022-07',
         }),
       });
     });

@@ -1,12 +1,15 @@
 import React from 'react';
-import {Helmet} from '../../client';
+import {Head} from '../../foundation/Head/index.js';
+import {TitleSeo} from './TitleSeo.client.js';
+import {DescriptionSeo} from './DescriptionSeo.client.js';
+import type {HomePage} from './seo-types.js';
 
-import {TitleSeo} from './TitleSeo.client';
-import {DescriptionSeo} from './DescriptionSeo.client';
-
-import type {HomePage} from './types';
-
-export function HomePageSeo({title, description, url}: HomePage) {
+export function HomePageSeo({
+  title,
+  description,
+  url,
+  titleTemplate,
+}: HomePage) {
   const organizationSchema = {
     '@context': 'http://schema.org',
     '@type': 'Organization',
@@ -23,7 +26,7 @@ export function HomePageSeo({title, description, url}: HomePage) {
 
   return (
     <>
-      <Helmet>
+      <Head defaultTitle={title ?? ''} titleTemplate={titleTemplate ?? `%s`}>
         <meta property="og:url" content={url} />
 
         <script type="application/ld+json">
@@ -33,7 +36,7 @@ export function HomePageSeo({title, description, url}: HomePage) {
         <script type="application/ld+json">
           {JSON.stringify(webSiteSchema)}
         </script>
-      </Helmet>
+      </Head>
       <TitleSeo title={title} />
       {description && <DescriptionSeo description={description} />}
     </>

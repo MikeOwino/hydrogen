@@ -1,12 +1,12 @@
 import React from 'react';
-import {useShop} from '../../foundation';
-import {Helmet} from '../../client';
+import {Head} from '../../foundation/Head/index.js';
+import {useLocalization} from '../../hooks/useLocalization/useLocalization.js';
 
-import {TitleSeo} from './TitleSeo.client';
-import {DescriptionSeo} from './DescriptionSeo.client';
-import {TwitterSeo} from './TwitterSeo.client';
-
-import type {DefaultPage} from './types';
+import {TitleSeo} from './TitleSeo.client.js';
+import {DescriptionSeo} from './DescriptionSeo.client.js';
+import {TwitterSeo} from './TwitterSeo.client.js';
+import type {DefaultPage} from './seo-types.js';
+import type {PartialDeep} from 'type-fest';
 
 export function DefaultPageSeo({
   title,
@@ -14,21 +14,22 @@ export function DefaultPageSeo({
   url,
   titleTemplate,
   lang,
-}: DefaultPage) {
-  const {locale} = useShop();
-  const fallBacklang = locale.split(/[-_]/)[0];
+}: PartialDeep<DefaultPage>) {
+  const {
+    language: {isoCode: fallBacklang},
+  } = useLocalization();
 
   return (
     <>
-      <Helmet
-        defaultTitle={title}
+      <Head
+        defaultTitle={title ?? ''}
         titleTemplate={titleTemplate ?? `%s - ${title}`}
       >
         <html lang={lang ?? fallBacklang} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content={title} />
+        <meta property="og:site_name" content={title ?? ''} />
         <meta property="og:url" content={url} />
-      </Helmet>
+      </Head>
       <TitleSeo title={title} />
       <DescriptionSeo description={description} />
       <TwitterSeo title={title} description={description} />
